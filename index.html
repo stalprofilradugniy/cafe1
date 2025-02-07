@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Поиск кафе</title>
+    <script src="https://api-maps.yandex.ru/2.1/?lang=ru_RU"></script>
+    <style>
+        #map {
+            width: 600px; 
+            height: 400px; 
+        }
+        #cafes {
+            list-style-type: none;
+            padding: 0;
+        }
+        #cafes li {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Поиск ближайших кафе</h1>
+    <div id="map"></div>
+    <ul id="cafes"></ul>
+
+    <script>
+        const apiKey = 'ВАШ_API_КЛЮЧ_ЯНДЕКС'; // Замените на свой API ключ
+        let map, userLocationMarker;
+
+        // Функция инициализации карты
+        function init() {
+            map = new ymaps.Map('map', {
+                center: [55.751244, 37.618423], // Координаты Москвы
+                zoom: 12
+            });
+
+            // Получение геолокации
+            navigator.geolocation.getCurrentPosition((position) => {
+                const userLocation = [position.coords.latitude, position.coords.longitude];
+                userLocationMarker = new ymaps.Placemark(userLocation);
+                map.setCenter(userLocation);
+                map.setZoom(16);
+                map.geoObjects.add(userLocationMarker);
+
+                // Поиск кафе
+                searchCafes(userLocation);
+            });
+        }
+
+        // Функция поиска кафе
+        function searchCafes(location) {
+            const request = `https://api.yandex.ru/v2/geolocator?lat=${location[0]}&lon=${location[1]}&spn=0.1,0.1&results=3&type=restaurant&apikey=${apiKey}`;
+            
+            fetch(request)
+                .then(response => response.json())
+                .then(data => {
+                    displayCafes(data);
+                })
+                .catch(error => console.error('Ошибка при поиске кафе: ', error));
+        }
+
+        // Функция отображения кафе
+        function displayCafes(cafes) {
+            const cafesList = document.getElementById('cafes');
+            cafesList.innerHTML = '';
+            cafes.items.forEach(cafe => {
+                const li = document.createElement('li');
+                li.innerHTML = `${cafe.name} - Рейтинг: ${cafe.rating || 'Нет данных'}`;
+                const routeButton = document.createElement('button');
+                routeButton.innerText = 'Построить маршрут';
+                routeButton.onclick = () => buildRoute(cafe);
+                li.appendChild(routeButton);
+                cafesList.appendChild(li);
+                
+                const cafeMarker = new ymaps.Placemark([cafe.geometry.coordinates[1], cafe.geometry.coordinates[0]]);
+                map.geoObjects.add(cafeMarker);
+            });
+        }
+
+        // Функция построения маршрута
+        function buildRoute(cafe) {
+            const userCoordinates = [userLocationMarker.geometry.coordinates[0], userLocationMarker.geometry.coordinates[1]];
+            const route = new ymaps.GeoQuery(userCoordinates, [cafe.geometry.coordinates[1], cafe.geometry.coordinates[0]]);
+            map.geoObjects.add(route);
+        }
+
+        ymaps.ready(init);
+    </script>
+</body>
+</html>
